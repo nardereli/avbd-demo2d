@@ -35,16 +35,18 @@ void Spring::computeDerivatives(Rigid* body)
     float dlen2 = dot(d, d);
     if (dlen2 == 0)
         return;
+
     float dlen = sqrtf(dlen2);
     float2 n = d / dlen;
-    float2x2 dxx = (I - outer(n, n) / dlen2) / dlen;
+    float2x2 dxx = (I - outer(n, n)) / dlen;
 
     if (body == bodyA)
     {
         float2 Sr = rotate(bodyA->position.z, S * rA);
         float2 r = rotate(bodyA->position.z, rA);
+
         float2 dxr = dxx * Sr;
-        float drr = dot(Sr, dxr) - dot(n, r);
+        float drr = -dot(n, r) - dot(n, r);
 
         J[0].xy() = n;
         J[0].z = dot(n, Sr);
@@ -58,8 +60,8 @@ void Spring::computeDerivatives(Rigid* body)
     {
         float2 Sr = rotate(bodyB->position.z, S * rB);
         float2 r = rotate(bodyB->position.z, rB);
-        float2 dxr = dxx * -Sr;
-        float drr = dot(Sr, dxr) + dot(n, r);
+        float2 dxr = dxx * Sr;
+        float drr = dot(n, r) + dot(n, r);
 
         J[0].xy() = -n;
         J[0].z = dot(n, -Sr);
