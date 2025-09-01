@@ -10,6 +10,7 @@ namespace AVBD
     public struct Body3D
     {
         public float3 position;
+        public float3 prevPosition;
         public quaternion orientation;
         public float3 velocity;
         public float3 angularVelocity;
