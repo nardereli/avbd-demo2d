@@ -15,13 +15,15 @@ namespace AVBD
         [Header("Rope Parameters")]
         public int segmentCount = 5;
         public float totalLength = 5f;
-        [Tooltip("Maximum stretch factor before inserting a new segment")] 
+        [Tooltip("Maximum stretch factor before inserting a new segment")]
         public float stretchLimit = 1.2f;
         [Tooltip("Solver drag coefficient applied to all segments")]
         public float drag = 0.0f;
         [Tooltip("Solver post-update drag coefficient")]
         public float postDrag = 0.0f;
         public bool autoLength = false;
+        [Tooltip("Radius of each rope segment capsule")]
+        public float segmentRadius = 0.05f;
 
         public Solver3D solver;
 
@@ -72,7 +74,7 @@ namespace AVBD
                 go.transform.localPosition = new Vector3(0, -m_SegmentLength * i, 0);
                 var col = go.AddComponent<CapsuleCollider>();
                 col.height = m_SegmentLength;
-                col.radius = 0.05f;
+                col.radius = segmentRadius;
                 col.direction = 1; // Y axis
                 m_Segments.Add(go);
 
@@ -126,6 +128,8 @@ namespace AVBD
 
             solver.drag = drag;
             solver.postDrag = postDrag;
+            solver.capsuleHalfLength = m_SegmentLength * 0.5f;
+            solver.capsuleRadius = segmentRadius;
         }
 
         /// <summary>
@@ -160,7 +164,7 @@ namespace AVBD
             go.transform.position = prevGO.transform.position - new Vector3(0, m_SegmentLength, 0);
             var col = go.AddComponent<CapsuleCollider>();
             col.height = m_SegmentLength;
-            col.radius = 0.05f;
+            col.radius = segmentRadius;
             col.direction = 1;
             m_Segments.Add(go);
 

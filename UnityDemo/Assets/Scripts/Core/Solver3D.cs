@@ -21,6 +21,9 @@ namespace AVBD
         public float drag = 0.0f;
         public float postDrag = 0.0f;
         public float deltaTime = 1f / 60f;
+        [Header("Rope Collision")]
+        public float capsuleRadius = 0.05f;
+        public float capsuleHalfLength = 0.25f;
 
         public NativeArray<Body3D> bodies;
         public NativeArray<ForceHandle> forces;
@@ -28,6 +31,7 @@ namespace AVBD
         public NativeArray<Spring3D> springs;
         public NativeArray<Motor3D> motors;
         public NativeList<ContactManifold3D> contacts;
+        public NativeList<ConvexCollider> convexColliders;
 
         void Awake()
         {
@@ -37,6 +41,7 @@ namespace AVBD
             springs = new NativeArray<Spring3D>(0, Allocator.Persistent);
             motors = new NativeArray<Motor3D>(0, Allocator.Persistent);
             contacts = new NativeList<ContactManifold3D>(Allocator.Persistent);
+            convexColliders = new NativeList<ConvexCollider>(Allocator.Persistent);
         }
 
         void OnDestroy()
@@ -47,12 +52,13 @@ namespace AVBD
             if (springs.IsCreated) springs.Dispose();
             if (motors.IsCreated) motors.Dispose();
             if (contacts.IsCreated) contacts.Dispose();
+            if (convexColliders.IsCreated) convexColliders.Dispose();
         }
 
         public void Step()
         {
-            // Broadphase placeholder
             contacts.Clear();
+            RopeCollisionJobs.GenerateContacts(bodies, convexColliders.AsArray(), contacts, capsuleHalfLength, capsuleRadius);
 
             // Warm start placeholder
 
@@ -66,19 +72,27 @@ namespace AVBD
             };
             integrate.Schedule(bodies.Length, 64).Complete();
 
+            int handleCount = forces.Length + contacts.Length;
+            var allHandles = new NativeArray<ForceHandle>(handleCount, Allocator.Temp);
+            for (int i = 0; i < forces.Length; ++i) allHandles[i] = forces[i];
+            for (int i = 0; i < contacts.Length; ++i)
+                allHandles[forces.Length + i] = new ForceHandle { Type = ForceType.Contact, Index = i };
+
             // Constraint iterations (primal/dual updates)
             for (int i = 0; i < iterations; ++i)
             {
                 var constraintJob = new ConstraintJob
                 {
-                    handles = forces,
+                    handles = allHandles,
                     joints = joints,
                     springs = springs,
                     motors = motors,
                     contacts = contacts.AsDeferredJobArray()
                 };
-                constraintJob.Schedule(forces.Length, 32).Complete();
+                constraintJob.Schedule(handleCount, 32).Complete();
             }
+
+            allHandles.Dispose();
 
             // Velocity post-update
             var post = new PostUpdateJob
@@ -88,6 +102,16 @@ namespace AVBD
                 dt = deltaTime
             };
             post.Schedule(bodies.Length, 64).Complete();
+        }
+
+        public void RegisterCollider(ConvexCollider collider)
+        {
+            convexColliders.Add(collider);
+        }
+
+        public void ClearColliders()
+        {
+            convexColliders.Clear();
         }
 
         [BurstCompile]
