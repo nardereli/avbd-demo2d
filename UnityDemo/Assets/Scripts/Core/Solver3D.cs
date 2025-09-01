@@ -62,12 +62,20 @@ namespace AVBD
 
             // Warm start placeholder
 
+            // Dampen velocities and store previous positions
+            var pre = new PreStepJob
+            {
+                bodies = bodies,
+                drag = drag,
+                dt = deltaTime
+            };
+            pre.Schedule(bodies.Length, 64).Complete();
+
             // Integrate inertial positions
             var integrate = new IntegrateJob
             {
                 bodies = bodies,
                 gravity = gravity,
-                drag = drag,
                 dt = deltaTime
             };
             integrate.Schedule(bodies.Length, 64).Complete();
@@ -98,8 +106,7 @@ namespace AVBD
             var post = new PostUpdateJob
             {
                 bodies = bodies,
-                postDrag = postDrag,
-                dt = deltaTime
+                postDragFactor = (1f - postDrag * deltaTime) / deltaTime
             };
             post.Schedule(bodies.Length, 64).Complete();
         }
@@ -115,18 +122,32 @@ namespace AVBD
         }
 
         [BurstCompile]
-        private struct IntegrateJob : IJobParallelFor
+        private struct PreStepJob : IJobParallelFor
         {
             public NativeArray<Body3D> bodies;
-            public float3 gravity;
             public float drag;
             public float dt;
 
             public void Execute(int index)
             {
                 Body3D b = bodies[index];
-                b.velocity += gravity * dt;
+                b.prevPosition = b.position;
                 b.velocity *= (1f - drag * dt);
+                bodies[index] = b;
+            }
+        }
+
+        [BurstCompile]
+        private struct IntegrateJob : IJobParallelFor
+        {
+            public NativeArray<Body3D> bodies;
+            public float3 gravity;
+            public float dt;
+
+            public void Execute(int index)
+            {
+                Body3D b = bodies[index];
+                b.velocity += gravity * dt;
                 b.UpdateTransform(dt);
                 bodies[index] = b;
             }
@@ -189,13 +210,12 @@ namespace AVBD
         private struct PostUpdateJob : IJobParallelFor
         {
             public NativeArray<Body3D> bodies;
-            public float postDrag;
-            public float dt;
+            public float postDragFactor;
 
             public void Execute(int index)
             {
                 Body3D b = bodies[index];
-                b.velocity *= (1f - postDrag * dt);
+                b.velocity = (b.position - b.prevPosition) * postDragFactor;
                 bodies[index] = b;
             }
         }

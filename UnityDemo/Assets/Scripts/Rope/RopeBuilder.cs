@@ -59,7 +59,12 @@ namespace AVBD
                 }
             }
 
-            solver?.Step();
+            if (solver != null)
+            {
+                solver.drag = drag;
+                solver.postDrag = postDrag;
+                solver.Step();
+            }
         }
 
         /// <summary>
@@ -81,6 +86,7 @@ namespace AVBD
                 var body = new Body3D
                 {
                     position = go.transform.position,
+                    prevPosition = go.transform.position,
                     orientation = quaternion.identity,
                     velocity = float3.zero,
                     angularVelocity = float3.zero,
@@ -171,6 +177,7 @@ namespace AVBD
             var body = new Body3D
             {
                 position = go.transform.position,
+                prevPosition = go.transform.position,
                 orientation = quaternion.identity,
                 velocity = float3.zero,
                 angularVelocity = float3.zero,
